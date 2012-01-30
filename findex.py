@@ -204,13 +204,30 @@ def reschedule(t, f, F):
     return t * log(r) / log(R)
 
 def newNextInterval(self, card, ease, _old):
-    orig = _old(self, card, ease)
-    if orig == 0:
-        return orig
+    orig_next_interval = _old(self, card, ease)
+    # from PyQt4.QtCore import pyqtRemoveInputHook
+    # pyqtRemoveInputHook()
+    if orig_next_interval == 0:
+        return orig_next_interval
     newfi, oldfi = getfi(card)
     if newfi is None:
         return orig
-    return reschedule(orig, newfi, oldfi)
+    adjusted_next_interval = reschedule(orig_next_interval, newfi, oldfi)
+    prev_interval = card.interval
+    ## card.interval is the prevously scheduled interval. We probably
+    ## don't want the new interval to become shorter than this.
+    # Prevent card interval from being all zeros
+    if prev_interval == 0: prev_interval = 0.001
+    if adjusted_next_interval <= prev_interval:
+        print 'adjusted_next_interval <= prev_interval with ease %d' % ease
+        if ease == 2: interval_factor = 1
+        elif ease == 3: interval_factor = 1.3
+        elif ease == 4: interval_factor = 1.5
+    # i.e. use adjusted_next_interval
+    else: interval_factor = adjusted_next_interval/prev_interval
+    print 'Using interval_factor %f' % interval_factor
+    print 'Old interval: %f, New interval: %f' %(card.interval, prev_interval*interval_factor)
+    return prev_interval*interval_factor
 
 oldnextival = deck.Deck.nextInterval
 deck.Deck.nextInterval = wrap(deck.Deck.nextInterval, newNextInterval, 'around')
